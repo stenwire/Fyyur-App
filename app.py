@@ -48,13 +48,13 @@ app.jinja_env.filters['datetime'] = format_datetime
 #----------------------------------- Filters End -----------------------------------------#
 
 
-#------------------------------------- Controllers Start ---------------------------------------#
+#------------------------------------- Home route Start ---------------------------------------#
 
 @app.route('/')
 def index():
   return render_template('pages/home.html')
 
-#------------------------------------- Controllers End ---------------------------------------#
+#------------------------------------- Home route End ---------------------------------------#
 
 
 
@@ -135,9 +135,11 @@ def create_venue_submission():
                       facebook_link=venue['facebook_link'])
     db.session.add(new_venue)
     db.session.commit()
+    # on success
     flash('Venue ' + request.form['name'] + ' was successfully listed!')
   except Exception as e:
     db.session.rollback()
+    # on fail
     flash('Venue ' + request.form['name'] + ' was not listed, please try again!')
   finally:
     db.session.close()
@@ -159,9 +161,11 @@ def edit_venue_submission(venue_id):
       dict(genres=request.form.getlist('genres'))
       )
     db.session.commit()
+    # on success
     flash('Artist ' + venue['name'] + ' was successfully listed!')
   except Exception as e:
     db.session.rollback()
+    # on fail
     flash('Artist ' + venue['name'] + ' was not listed, please try again!')
   finally:
     db.session.close()
@@ -174,10 +178,12 @@ def delete_venue(venue_id):
     venue = Venue.query.get(venue_id)
     db.session.delete(venue)
     db.session.commit()
-    flash('Venue was successfully deleted!')  # on success
+    # on success
+    flash('Venue was successfully deleted!')
   except Exception as e:
     db.session.rollback()
-    flash('Venue was not deleted, please try again or contact us!')  # on fail
+    # on fail
+    flash('Venue was not deleted, please try again or contact us!')
   finally:
     db.session.close()
 
@@ -210,8 +216,15 @@ def search_artists():
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
   data = Artist.query.filter_by(id=artist_id).first().__dict__
-  past_shows = db.session.query(Venue, Show, Artist).filter(Venue.id == Show.venue_id).filter(Artist.id == Show.artist_id).filter(Show.start_time < datetime.now()).filter(Artist.id == artist_id).all()
-  upcoming_shows = db.session.query(Venue, Show, Artist).filter(Venue.id == Show.venue_id).filter(Artist.id == Show.artist_id).filter(Show.start_time > datetime.now()).filter(Artist.id == artist_id).all()
+
+  past_shows = db.session.query(Venue, Show, Artist).filter(Venue.id == Show.venue_id)\
+    .filter(Artist.id == Show.artist_id).filter(Show.start_time < datetime.now())\
+      .filter(Artist.id == artist_id).all()
+
+  upcoming_shows = db.session.query(Venue, Show, Artist)\
+    .filter(Venue.id == Show.venue_id).filter(Artist.id == Show.artist_id)\
+      .filter(Show.start_time > datetime.now()).filter(Artist.id == artist_id)\
+        .all()
   
   data['past_shows'] = [
     {'venue_id': venue.id, 'venue_name': venue.name, 'venue_image_link': venue.image_link, 
@@ -238,12 +251,15 @@ def edit_artist_submission(artist_id):
   artist = request.form.to_dict()
   try:
     Artist.query.filter_by(id=artist_id).update(artist)
-    Artist.query.filter_by(id=artist_id).update(dict(genres=request.form.getlist('genres')))
+    Artist.query.filter_by(id=artist_id).update(dict(genres=request.form.getlist
+    ('genres')))
     db.session.commit()
-    flash('Artist ' + artist['name'] + ' was successfully listed!')  # on success
+    # on success
+    flash('Artist ' + artist['name'] + ' was successfully listed!')
   except Exception as e:
     db.session.rollback()
-    flash('Artist ' + artist['name'] + ' was not listed, please try again!')  # on fail
+    # on fail
+    flash('Artist ' + artist['name'] + ' was not listed, please try again!')
   finally:
     db.session.close()
 
@@ -259,15 +275,18 @@ def create_artist_submission():
 
   artist = request.form.to_dict() 
   try:
-    new_artist = Artist(name=artist['name'], city=artist['city'], state=artist['state'],
-                        phone=artist['phone'], genres=request.form.getlist('genres'), 
-                        facebook_link=artist['facebook_link']
-                        )
+    new_artist = Artist(
+    name=artist['name'], city=artist['city'], 
+    state=artist['state'], phone=artist['phone'], genres=request.form.getlist
+    ('genres'), facebook_link=artist['facebook_link']
+    )
     db.session.add(new_artist)
     db.session.commit()
+    # on success
     flash('Artist ' + artist['name'] + ' was successfully listed!')
   except Exception as e:
     db.session.rollback()
+    # on fail
     flash('Artist ' + artist['name'] + ' was not listed, please try again!')
   finally:
     db.session.close()
@@ -281,7 +300,6 @@ def create_artist_submission():
 
 @app.route('/shows')
 def shows():
-  # displays list of shows at /shows
   shows = db.session.query(Venue, Show, Artist).filter(Venue.id == Show.venue_id).filter(Artist.id == Show.artist_id).all()
   data = []
   
@@ -299,7 +317,6 @@ def shows():
 
 @app.route('/shows/create')
 def create_shows():
-  # renders form. do not touch.
   form = ShowForm()
   return render_template('forms/new_show.html', form=form)
 
@@ -312,10 +329,12 @@ def create_show_submission():
     new_show = Show(venue_id=show['venue_id'], artist_id=show['artist_id'], start_time=start_time_format)
     db.session.add(new_show)
     db.session.commit()
+    # on success
     flash('Show was successfully listed!')
   except Exception as e:
     db.session.rollback()
     app.logger.info(e)
+    # on success
     flash('Show was NOT successfully listed. Try again.')
   finally:
     db.session.close()
@@ -354,7 +373,7 @@ if not app.debug:
 #  -------------------------------  Start App ---------------------------------
 
 
-# Default port:
+# Default port is :5000
 if __name__ == '__main__':
     app.run(debug=True)
     app.run(host='0.0.0.0')
