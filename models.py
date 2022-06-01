@@ -37,7 +37,7 @@ class Venue(db.Model):
 
 
   def __repr__(self):
-    return f'<id: {self.id}, name: {self.name}, state: {self.state}>'
+    return f'<id: {self.id}, state: {self.state} city: {self.city}>'
 
 class Artist(db.Model):
   __tablename__ = 'Artist'
@@ -55,7 +55,7 @@ class Artist(db.Model):
   show = db.relationship('Show', backref='artist', lazy=True)
 
   def __repr__(self):
-    return f'<id: {self.id}, name: {self.name}, state: {self.city}>'
+    return f'<id: {self.id}, state: {self.state} city: {self.city}>'
 
 class Show(db.Model):
   __tablename__ = 'Show'
@@ -63,6 +63,7 @@ class Show(db.Model):
   venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'))
   artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'))
   start_time = db.Column(db.DateTime)
+
 
   def __repr__(self):
     return f'<id: {self.id}, venue_id: {self.venue_id},\
