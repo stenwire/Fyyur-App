@@ -17,7 +17,7 @@ import config
 from forms import VenueForm, ArtistForm, ShowForm
 from datetime import datetime
 import sys
-from sqlalchemy import func
+from sqlalchemy import func, true
 import os
 from models import Venue, Artist, Show
 
@@ -66,69 +66,76 @@ def venues():
   areas = Venue.query.distinct('city', 'state').all()
   for area in areas:
     venues = Venue.query.filter(Venue.city == area.city, Venue.state == area.state).all()
-    record = {
+    body = {
       'city': area.city,
       'state': area.state,
       'venues': [{'id': venue.id, 'name': venue.name, 'num_upcoming_show': venue.upcoming_shows} for venue in venues],
     }
-    data.append(record)
+    data.append(body)
+  # print(json.dumps(body))
   return render_template('pages/venues.html', areas=data)
 
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
   search_term = request.form.get('search_term', '')
-  response = {}
+  body = {}
   data = []
   venues = Venue.query.filter(func.lower(Venue.name).contains(search_term.lower())).all()
   for venue in venues:
     data.append({'id': venue.id, 'name': venue.name, 'num_upcoming_shows': venue.upcoming_shows})
-  response['data'] = data
-  response['count'] = len(venues)
-
-  return render_template('pages/search_venues.html', results=response, search_term=search_term)
+  body['data'] = data
+  body['count'] = len(venues)
+  # print(json.dumps(data))
+  return render_template('pages/search_venues.html', results=body, search_term=search_term)
 
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
   data = Venue.query.filter_by(id=venue_id).first().__dict__
+  # print(json.dumps(data))
 
   past_shows = db.session.query(
     Venue, Show, Artist).filter(Venue.id == Show.venue_id)\
       .filter(Artist.id == Show.artist_id).filter(Show.start_time < datetime.now())\
         .filter(Venue.id == venue_id).all()
+  # print(json.dumps(past_shows))
 
   upcoming_shows = db.session.query(Venue, Show, Artist)\
     .filter(Venue.id == Show.venue_id).filter(Artist.id == Show.artist_id)\
       .filter(Show.start_time > datetime.now()).filter(Venue.id == venue_id).all()
+  
+  # print(json.dumps(upcoming_shows))
 
-  data['past_shows'] = [
-    {'artist_id': artist.id, 'artist_name': artist.name, 
-  'artist_image_link': artist.image_link, 'start_time': str(show.start_time)} 
-  for (venue, show, artist) in past_shows
+  data['past_shows'] = [{
+    'artist_id': artist.id, 'artist_name': artist.name,\
+       'artist_image_link': artist.image_link, 'start_time': str(show.start_time)}\
+          for (show, artist) in past_shows
   ]
 
   data['upcoming_shows'] = [
     {'artist_id': artist.id, 'artist_name': artist.name, 
     'artist_image_link': artist.image_link, 'start_time': str(show.start_time)}
-     for (venue, show, artist) in upcoming_shows
+     for (show, artist) in upcoming_shows
      ]
 
   data['past_show_count'] = len(data['past_shows'])
   data['upcoming_show_count'] = len(data['upcoming_shows'])
-
+  # print(json.dumps(upcoming_shows))
   return render_template('pages/show_venue.html', venue=data)
 
 
 @app.route('/venues/create', methods=['GET'])
 def create_venue_form():
   form = VenueForm()
+  # print(json.dumps(form))
   return render_template('forms/new_venue.html', form=form)
 
 
 @app.route('/venues/create', methods=['POST'])
 def create_venue_submission():
   venue = request.form.to_dict()
+  error = True
   try:
     new_venue = Venue(name=venue['name'], city=venue['city'], state=venue['state'],
                       address=venue['address'], phone=venue['phone'], genres=request.form.getlist('genres'), 
@@ -136,25 +143,29 @@ def create_venue_submission():
     db.session.add(new_venue)
     db.session.commit()
     # on success
+    error = False
     flash('Venue ' + request.form['name'] + ' was successfully listed!')
+    print(error)
   except Exception as e:
     db.session.rollback()
     # on fail
+    print(error)
     flash('Venue ' + request.form['name'] + ' was not listed, please try again!')
   finally:
     db.session.close()
-
   return render_template('pages/home.html')
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
   form = VenueForm()
   venue = Venue.query.filter_by(id=venue_id).all()[0]
+  # print(json.dumps(venue))
   return render_template('forms/edit_venue.html', form=form, venue=venue)
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
 def edit_venue_submission(venue_id):
   venue = request.form.to_dict()
+  error = True
   try:
     Venue.query.filter_by(id=venue_id).update(venue)
     Venue.query.filter_by(id=venue_id).update(
@@ -163,17 +174,19 @@ def edit_venue_submission(venue_id):
     db.session.commit()
     # on success
     flash('Artist ' + venue['name'] + ' was successfully listed!')
+    print(error = False)
   except Exception as e:
     db.session.rollback()
     # on fail
+    print(error)
     flash('Artist ' + venue['name'] + ' was not listed, please try again!')
   finally:
     db.session.close()
-
   return redirect(url_for('show_venue', venue_id=venue_id))
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
+  error = True
   try:
     venue = Venue.query.get(venue_id)
     db.session.delete(venue)
@@ -182,11 +195,11 @@ def delete_venue(venue_id):
     flash('Venue was successfully deleted!')
   except Exception as e:
     db.session.rollback()
+    print(error)
     # on fail
     flash('Venue was not deleted, please try again or contact us!')
   finally:
     db.session.close()
-
   return None
 
 #  ------------------------------ Venues End ----------------------------------
@@ -202,16 +215,17 @@ def artists():
 @app.route('/artists/search', methods=['POST'])
 def search_artists():
   search_term = request.form.get('search_term', '')
-  response = {}
+  body = {}
   data = []
   artists = Artist.query.filter(func.lower(Artist.name).contains(search_term.lower())).all()
   for artist in artists:
     data.append({'id': artist.id, 'name': artist.name, 
     'num_upcoming_shows': artist.upcoming_shows})
-  response['data'] = data
-  response['count'] = len(artists)
-
-  return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
+  body['data'] = data
+  body['count'] = len(artists)
+  # print(json.dumps(body))
+  return render_template('pages/search_artists.html', results=body, 
+  search_term=request.form.get('search_term', ''))
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
@@ -220,6 +234,7 @@ def show_artist(artist_id):
   past_shows = db.session.query(Venue, Show, Artist).filter(Venue.id == Show.venue_id)\
     .filter(Artist.id == Show.artist_id).filter(Show.start_time < datetime.now())\
       .filter(Artist.id == artist_id).all()
+  # print(past_shows.jsonify())
 
   upcoming_shows = db.session.query(Venue, Show, Artist)\
     .filter(Venue.id == Show.venue_id).filter(Artist.id == Show.artist_id)\
@@ -230,14 +245,17 @@ def show_artist(artist_id):
     {'venue_id': venue.id, 'venue_name': venue.name, 'venue_image_link': venue.image_link, 
     'start_time': str(show.start_time)} 
     for (venue, show, artist) in past_shows]
+      
+  # print(json.dumps(data))
 
   data['upcoming_shows'] = [{'venue_id': venue.id, 'venue_name': venue.name, 
   'venue_image_link': venue.image_link, 'start_time': str(show.start_time)} 
-  for (venue, show, artist) in upcoming_shows]
+  for (venue, show) in upcoming_shows]
+  # print(json.dumps(data))
 
   data['past_show_count'] = len(data['past_shows'])
   data['upcoming_show_count'] = len(data['upcoming_shows'])
-
+  # print(json.dumps(data))
   return render_template('pages/show_artist.html', artist=data)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
@@ -249,6 +267,7 @@ def edit_artist(artist_id):
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
   artist = request.form.to_dict()
+  error = True
   try:
     Artist.query.filter_by(id=artist_id).update(artist)
     Artist.query.filter_by(id=artist_id).update(dict(genres=request.form.getlist
@@ -259,10 +278,10 @@ def edit_artist_submission(artist_id):
   except Exception as e:
     db.session.rollback()
     # on fail
+    print(error)
     flash('Artist ' + artist['name'] + ' was not listed, please try again!')
   finally:
     db.session.close()
-
   return redirect(url_for('show_artist', artist_id=artist_id))
 
 @app.route('/artists/create', methods=['GET'])
@@ -272,7 +291,6 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
-
   artist = request.form.to_dict() 
   try:
     new_artist = Artist(
@@ -290,7 +308,6 @@ def create_artist_submission():
     flash('Artist ' + artist['name'] + ' was not listed, please try again!')
   finally:
     db.session.close()
-
   return render_template('pages/home.html')
 
 #  --------------------------------- Artists Start -------------------------------
@@ -300,8 +317,11 @@ def create_artist_submission():
 
 @app.route('/shows')
 def shows():
-  shows = db.session.query(Venue, Show, Artist).filter(Venue.id == Show.venue_id).filter(Artist.id == Show.artist_id).all()
+
   data = []
+
+  shows = db.session.query(Venue, Show, Artist).filter(Venue.id == Show.venue_id)\
+    .filter(Artist.id == Show.artist_id).all()
   
   for (venue, show, artist) in shows:
     data.append({
@@ -312,7 +332,7 @@ def shows():
       'artist_image_link': artist.image_link, 
       'start_time': str(show.start_time)
     })
-
+  # print(json.dump(data))
   return render_template('pages/shows.html', shows=data)
 
 @app.route('/shows/create')
@@ -322,7 +342,7 @@ def create_shows():
 
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
-  # creates new show
+  error = true
   try:
     show = request.form.to_dict()
     start_time_format = datetime.strptime(show['start_time'], '%Y-%m-%d %H:%M:%S')
@@ -334,11 +354,10 @@ def create_show_submission():
   except Exception as e:
     db.session.rollback()
     app.logger.info(e)
-    # on success
+    print(error)
     flash('Show was NOT successfully listed. Try again.')
   finally:
     db.session.close()
-
   return render_template('pages/home.html')
 
 #  ------------------------------- Shows Start ---------------------------------
