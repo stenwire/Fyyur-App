@@ -28,10 +28,12 @@ class Venue(db.Model):
   show = db.relationship('Show', backref='venue', lazy=True)
 
   def upcoming_shows():
-    shows = db.session.query(Venue.id, Venue.name).join(Show).filter(Show.start_time > datetime.now).count()
+    shows = db.session.query(Venue.id, Venue.name).join(Show)\
+      .filter(Show.start_time > datetime.now).count()
 
   def past_shows():
-    shows = db.session.query(Venue.id, Venue.name).join(Show).filter(Show.start_time < datetime.now).count()
+    shows = db.session.query(Venue.id, Venue.name).join(Show)\
+      .filter(Show.start_time < datetime.now).count()
 
 
   def __repr__(self):
@@ -63,7 +65,8 @@ class Show(db.Model):
   start_time = db.Column(db.DateTime)
 
   def __repr__(self):
-    return f'<id: {self.id}, venue_id: {self.venue_id}, artist_id: {self.artist_id}, time: {self.start_time}>'
+    return f'<id: {self.id}, venue_id: {self.venue_id},\
+       artist_id: {self.artist_id}, time: {self.start_time}>'
 
 #-------------------------------------- Models End --------------------------------------#
 
