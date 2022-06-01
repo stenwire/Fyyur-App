@@ -1,1 +1,1 @@
-# Fyyur: where Artists meets Venues
+# Fyyur: where Artists meets Venues and Shows
